@@ -18,7 +18,7 @@ jobs:
   build:
     name: "build-${{ inputs.kernelBranch }}"
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     steps:
       - uses: actions/checkout@v4
@@ -44,18 +44,15 @@ jobs:
           if [[ ${{ inputs.kernelBranch }} == "linux-msft-wsl-6.6.y" ]];
           then
             make -j$((NB_CORES+1)) -l${NB_CORES} INSTALL_MOD_PATH="$PWD/modules" modules_install
-            sudo ./Microsoft/scripts/gen_modules_vhdx.sh "$PWD/modules" modules.vhdx
+            sudo ./Microsoft/scripts/gen_modules_vhdx.sh "$PWD/modules" arch/x86/boot/modules.vhdx
           else
             touch modules.vhdx
           fi
-          echo "::endgroup::"
-          echo "::group::Cleanup"
-          make clean && rm -r "$PWD/modules"
           echo "::endgroup::"
 
       - uses: actions/upload-artifact@v4
         with:
           name: WSL2-Kernel-${{ inputs.kernelBranch }}
-          path:
+          path: |
             arch/x86/boot/bzImage
-            modules.vhdx
+            arch/x86/boot/modules.vhdx
