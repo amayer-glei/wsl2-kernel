@@ -7,7 +7,7 @@ on:
       kernelBranch:
         description: "WSL2-Linux-Kernel git branch"
         required: true
-        default: "linux-msft-wsl-5.15.y"
+        default: "linux-msft-wsl-6.6.y"
         type: string
 
 concurrency:
@@ -16,7 +16,9 @@ concurrency:
 
 jobs:
   build:
+    name: "build-${{ inputs.kernelBranch }}"
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -39,8 +41,13 @@ jobs:
           make -j$((NB_CORES+1)) -l${NB_CORES} KCONFIG_CONFIG=Microsoft/config-wsl
           echo "::endgroup::"
           echo "::group::Build modules"
-          make -j$((NB_CORES+1)) -l${NB_CORES} INSTALL_MOD_PATH="$PWD/modules" modules_install
-          sudo ./Microsoft/scripts/gen_modules_vhdx.sh "$PWD/modules" modules.vhdx
+          if [[ ${{ inputs.kernelBranch }} == "linux-msft-wsl-6.6.y" ]];
+          then
+            make -j$((NB_CORES+1)) -l${NB_CORES} INSTALL_MOD_PATH="$PWD/modules" modules_install
+            sudo ./Microsoft/scripts/gen_modules_vhdx.sh "$PWD/modules" modules.vhdx
+          else
+            touch modules.vhdx
+          fi
           echo "::endgroup::"
           echo "::group::Cleanup"
           make clean && rm -r "$PWD/modules"
