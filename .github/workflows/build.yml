@@ -5,14 +5,23 @@ on:
   workflow_dispatch:
     inputs:
       kernelBranch:
-        description: "WSL2-Linux-Kernel git branch"
+        description: "WSL2-Linux-Kernel branch"
         required: true
         default: "linux-msft-wsl-6.6.y"
         type: string
+      custom-config:
+        description: "Use custom config?"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.kernelBranch }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:
@@ -20,32 +29,36 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout WSL2-Linux-Kernel repository
+        uses: actions/checkout@v4
         with:
           repository: microsoft/WSL2-Linux-Kernel
           ref: ${{ github.event.inputs.kernelBranch }}
 
-      - uses: actions/checkout@v4
+      - name: Checkout custom-config
+        uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
           ref: ${{ github.ref }}
           path: .config
 
       - name: Install requirements
-        shell: bash
         run: |
           sudo apt-get update -y
           sudo apt-get upgrade -y
           sudo apt-get install -y build-essential flex bison dwarves libssl-dev libelf-dev cpio qemu-utils
 
+      - name: Copy custom config
+        if: ${{ inputs.custom-config }}
+        run: |
+          cp .config/config/config-wsl.cfg arch/x86/configs/config-wsl
+
       - name: Build WSL2-Linux-Kernel
-        shell: bash
         run: |
           echo "::group::Setup parallel build config"
           NB_CORES=$(grep -c '^processor' /proc/cpuinfo)
           echo "::endgroup::"
           echo "::group::Build kernel"
-          cp .config/config/config-wsl.cfg arch/x86/configs/config-wsl
           make -j$((NB_CORES+1)) -l${NB_CORES} KCONFIG_CONFIG=Microsoft/config-wsl
           echo "::endgroup::"
           echo "::group::Build modules"
