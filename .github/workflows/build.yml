@@ -9,6 +9,11 @@ on:
         required: true
         default: "linux-msft-wsl-6.6.y"
         type: string
+      build-modules:
+        description: "Build modules?"
+        required: true
+        default: false
+        type: boolean
       custom-config:
         description: "Use custom config?"
         required: true
@@ -49,22 +54,26 @@ jobs:
           sudo apt-get install -y build-essential flex bison dwarves libssl-dev libelf-dev cpio qemu-utils
 
       - name: Copy custom config
+        id: custom-config
         if: ${{ inputs.custom-config }}
         run: |
           cp .config/config/config-wsl.cfg arch/x86/configs/config-wsl
 
       - name: Build WSL2-Linux-Kernel
+        id: build-kernel
         run: |
-          echo "::group::Setup parallel build config"
-          NB_CORES=$(grep -c '^processor' /proc/cpuinfo)
-          echo "::endgroup::"
           echo "::group::Build kernel"
-          make -j$((NB_CORES+1)) -l${NB_CORES} KCONFIG_CONFIG=Microsoft/config-wsl
+          make -j$(nproc) KCONFIG_CONFIG=Microsoft/config-wsl
           echo "::endgroup::"
+
+      - name: Build WSL2-Linux-Kernel modules
+        id: build-modules
+        if: ${{ inputs.build-modules }}
+        run: |
           echo "::group::Build modules"
           if [[ ${{ inputs.kernelBranch }} == "linux-msft-wsl-6.6.y" ]];
           then
-            make -j$((NB_CORES+1)) -l${NB_CORES} INSTALL_MOD_PATH="$PWD/modules" modules_install
+            make -j$(nproc) INSTALL_MOD_PATH="$PWD/modules" modules_install
             sudo ./Microsoft/scripts/gen_modules_vhdx.sh "$PWD/modules" arch/x86/boot/modules.vhdx
           else
             touch modules.vhdx
@@ -72,8 +81,15 @@ jobs:
           echo "::endgroup::"
 
       - uses: actions/upload-artifact@v4
+        id: upload-artifact
         with:
           name: WSL2-Kernel-${{ inputs.kernelBranch }}
           path: |
             arch/x86/boot/bzImage
             arch/x86/boot/modules.vhdx
+
+      - uses: actions/attest-build-provenance@v2
+        id: attestations
+        with:
+          subject-name: WSL2-Kernel-${{ inputs.kernelBranch }}
+          subject-digest: sha256:${{ steps.upload-artifact.outputs.artifact-digest }}
