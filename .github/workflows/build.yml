@@ -24,6 +24,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.kernelBranch }}
   cancel-in-progress: true
 
+permissions:
+  id-token: write
+  attestations: write
+  contents: read
+
 defaults:
   run:
     shell: bash
