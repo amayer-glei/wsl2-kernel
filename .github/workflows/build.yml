@@ -79,7 +79,8 @@ jobs:
           if [[ ${{ inputs.kernelBranch }} == "linux-msft-wsl-6.6.y" ]];
           then
             make -j$(nproc) INSTALL_MOD_PATH="$PWD/modules" modules_install
-            sudo ./Microsoft/scripts/gen_modules_vhdx.sh "$PWD/modules" arch/x86/boot/modules.vhdx
+            sudo ./Microsoft/scripts/gen_modules_vhdx.sh "$PWD/modules"
+            sudo ./Microsoft/scripts/gen_modules_vhdx.sh "$PWD/modules" $(make -s kernelrelease) arch/x86/boot/modules.vhdx
           else
             touch modules.vhdx
           fi
