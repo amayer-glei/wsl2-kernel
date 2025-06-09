@@ -44,6 +44,15 @@ CONFIG_NF_CONNTRACK_TFTP=y
 CONFIG_BTRFS_FS=y
 ```
 
+### BBR (Bottleneck Bandwidth and RTT)
+
+```bash
+CONFIG_TCP_CONG_BBR=y
+CONFIG_NET_SCH_FQ_CODEL=y
+CONFIG_NET_SCH_FQ=y
+```
+
 ### Links
 
+- <https://docs.docker.com/engine/daemon/troubleshoot/#kernel-compatibility>
 - <https://github.com/microsoft/WSL/issues/11742#issuecomment-2272557613>
