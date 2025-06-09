@@ -63,7 +63,7 @@ jobs:
         id: custom-config
         if: ${{ inputs.custom-config }}
         run: |
-          cp .config/config/config-wsl.cfg arch/x86/configs/config-wsl
+          cp .config/config/config-wsl2.cfg arch/x86/configs/config-wsl
 
       - name: Build WSL2-Linux-Kernel
         id: build-kernel
