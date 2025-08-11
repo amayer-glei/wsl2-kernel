@@ -40,14 +40,14 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Checkout WSL2-Linux-Kernel repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: microsoft/WSL2-Linux-Kernel
           ref: ${{ github.event.inputs.kernelBranch }}
 
       - name: Checkout custom-config
         if: ${{ inputs.custom-config }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ github.repository }}
           ref: ${{ github.ref }}
