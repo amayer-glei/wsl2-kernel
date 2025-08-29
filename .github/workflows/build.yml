@@ -94,7 +94,7 @@ jobs:
             arch/x86/boot/bzImage
             arch/x86/boot/modules.vhdx
 
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v3
         id: attestations
         with:
           subject-name: WSL2-Kernel-${{ inputs.kernelBranch }}
