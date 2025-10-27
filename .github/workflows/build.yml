@@ -86,7 +86,7 @@ jobs:
           fi
           echo "::endgroup::"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         id: upload-artifact
         with:
           name: WSL2-Kernel-${{ inputs.kernelBranch }}
