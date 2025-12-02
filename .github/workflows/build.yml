@@ -35,67 +35,188 @@ defaults:
 
 jobs:
   build:
-    name: "build-${{ inputs.kernelBranch }}"
+    name: "build-${{ github.event.inputs.kernelBranch }}"
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ github.event.inputs.kernelBranch }}" ]; then
+            echo "Error: kernelBranch is required"
+            exit 1
+          fi
+          echo "Building kernel branch: ${{ github.event.inputs.kernelBranch }}"
+          echo "Build modules: ${{ github.event.inputs.build-modules }}"
+          echo "Use custom config: ${{ github.event.inputs.custom-config }}"
+
       - name: Checkout WSL2-Linux-Kernel repository
         uses: actions/checkout@v6
         with:
           repository: microsoft/WSL2-Linux-Kernel
           ref: ${{ github.event.inputs.kernelBranch }}
+          fetch-depth: 1
 
-      - name: Checkout custom-config
-        if: ${{ inputs.custom-config }}
+      - name: Checkout custom-config repository
+        if: github.event.inputs.custom-config == 'true'
         uses: actions/checkout@v6
         with:
           repository: ${{ github.repository }}
           ref: ${{ github.ref }}
-          path: .config
+          path: custom-config-repo
 
       - name: Install requirements
         run: |
           sudo apt-get update -y
-          sudo apt-get upgrade -y
-          sudo apt-get install -y build-essential flex bison dwarves libssl-dev libelf-dev cpio qemu-utils
+          sudo apt-get install -y \
+            build-essential \
+            flex \
+            bison \
+            dwarves \
+            libssl-dev \
+            libelf-dev \
+            cpio \
+            qemu-utils
 
       - name: Patch WSL2 kernel config
-        id: custom-config
-        if: ${{ inputs.custom-config }}
+        id: patch-config
+        if: github.event.inputs.custom-config == 'true'
         run: |
-          ./scripts/patch-wsl2-kernel-config.sh arch/x86/configs/config-wsl
+          echo "::group::Patch kernel config"
+          if [ ! -f "custom-config-repo/scripts/patch-wsl2-kernel-config.sh" ]; then
+            echo "Error: Patch script not found"
+            exit 1
+          fi
+          chmod +x custom-config-repo/scripts/patch-wsl2-kernel-config.sh
+          custom-config-repo/scripts/patch-wsl2-kernel-config.sh arch/x86/configs/config-wsl
+          echo "::endgroup::"
 
       - name: Build WSL2-Linux-Kernel
         id: build-kernel
         run: |
           echo "::group::Build kernel"
           make -j$(nproc) KCONFIG_CONFIG=Microsoft/config-wsl
+          if [ ! -f "arch/x86/boot/bzImage" ]; then
+            echo "Error: Kernel build failed - bzImage not found"
+            exit 1
+          fi
+          echo "Kernel build completed successfully"
           echo "::endgroup::"
 
       - name: Build WSL2-Linux-Kernel modules
         id: build-modules
-        if: ${{ inputs.build-modules }}
+        if: github.event.inputs.build-modules == 'true'
         run: |
           echo "::group::Build modules"
-          if [[ ${{ inputs.kernelBranch }} == "linux-msft-wsl-6.6.y" ]];
-          then
+          if [[ "${{ github.event.inputs.kernelBranch }}" == "linux-msft-wsl-6.6.y" ]]; then
             make -j$(nproc) INSTALL_MOD_PATH="$PWD/modules" modules_install
+            if [ ! -f "Microsoft/scripts/gen_modules_vhdx.sh" ]; then
+              echo "Error: gen_modules_vhdx.sh script not found"
+              exit 1
+            fi
             sudo ./Microsoft/scripts/gen_modules_vhdx.sh "$PWD/modules" $(make -s kernelrelease) arch/x86/boot/modules.vhdx
+            if [ ! -f "arch/x86/boot/modules.vhdx" ]; then
+              echo "Error: Modules VHDX generation failed"
+              exit 1
+            fi
+            echo "modules-built=true" >> $GITHUB_OUTPUT
           else
-            touch modules.vhdx
+            echo "Error: Module VHDX generation is only supported for branch linux-msft-wsl-6.6.y"
+            echo "Current branch: ${{ github.event.inputs.kernelBranch }}"
+            exit 1
           fi
           echo "::endgroup::"
 
-      - uses: actions/upload-artifact@v5
-        id: upload-artifact
+      - name: Calculate artifact digests
+        id: digests
+        run: |
+          echo "::group::Calculate digests"
+          KERNEL_SHA256=$(sha256sum arch/x86/boot/bzImage | cut -d' ' -f1)
+          echo "kernel-sha256=$KERNEL_SHA256" >> $GITHUB_OUTPUT
+          echo "Kernel SHA256: $KERNEL_SHA256"
+          if [ "${{ github.event.inputs.build-modules }}" == "true" ] && [ "${{ steps.build-modules.outputs.modules-built }}" == "true" ] && [ -f "arch/x86/boot/modules.vhdx" ]; then
+            MODULES_SHA256=$(sha256sum arch/x86/boot/modules.vhdx | cut -d' ' -f1)
+            echo "modules-sha256=$MODULES_SHA256" >> $GITHUB_OUTPUT
+            echo "Modules SHA256: $MODULES_SHA256"
+          fi
+          echo "::endgroup::"
+
+      - name: Upload kernel artifact
+        uses: actions/upload-artifact@v5
+        id: upload-kernel
         with:
-          name: WSL2-Kernel-${{ inputs.kernelBranch }}
-          path: |
-            arch/x86/boot/bzImage
-            arch/x86/boot/modules.vhdx
+          name: WSL2-Kernel-${{ github.event.inputs.kernelBranch }}
+          path: arch/x86/boot/bzImage
+          retention-days: 30
+          compression-level: 6
+
+      - name: Upload modules artifact
+        if: github.event.inputs.build-modules == 'true'
+        uses: actions/upload-artifact@v5
+        id: upload-modules
+        with:
+          name: WSL2-Modules-${{ github.event.inputs.kernelBranch }}
+          path: arch/x86/boot/modules.vhdx
+          retention-days: 30
+          compression-level: 6
+          if-no-files-found: warn
+
+      - name: Generate build summary
+        if: success()
+        run: |
+          echo "::group::Build Summary"
+          echo "Kernel Branch: ${{ github.event.inputs.kernelBranch }}"
+          echo "Custom Config: ${{ github.event.inputs.custom-config }}"
+          echo "Modules Built: ${{ github.event.inputs.build-modules }}"
+          {
+            echo "## Build Summary"
+            echo ""
+            echo "| Parameter | Value |"
+            echo "|-----------|-------|"
+            echo "| Kernel Branch | \`${{ github.event.inputs.kernelBranch }}\` |"
+            echo "| Custom Config | \`${{ github.event.inputs.custom-config }}\` |"
+            echo "| Modules Built | \`${{ github.event.inputs.build-modules }}\` |"
+            echo ""
+          } >> $GITHUB_STEP_SUMMARY
+          if [ -f "arch/x86/boot/bzImage" ]; then
+            KERNEL_SIZE=$(du -h arch/x86/boot/bzImage | cut -f1)
+            echo "Kernel Size: $KERNEL_SIZE"
+            echo "Kernel SHA256: ${{ steps.digests.outputs.kernel-sha256 }}"
+            {
+              echo "### Kernel"
+              echo ""
+              echo "| Property | Value |"
+              echo "|----------|-------|"
+              echo "| Size | \`$KERNEL_SIZE\` |"
+              echo "| SHA256 | \`${{ steps.digests.outputs.kernel-sha256 }}\` |"
+              echo ""
+            } >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "arch/x86/boot/modules.vhdx" ]; then
+            MODULES_SIZE=$(du -h arch/x86/boot/modules.vhdx | cut -f1)
+            echo "Modules Size: $MODULES_SIZE"
+            echo "Modules SHA256: ${{ steps.digests.outputs.modules-sha256 }}"
+            {
+              echo "### Modules"
+              echo ""
+              echo "| Property | Value |"
+              echo "|----------|-------|"
+              echo "| Size | \`$MODULES_SIZE\` |"
+              echo "| SHA256 | \`${{ steps.digests.outputs.modules-sha256 }}\` |"
+              echo ""
+            } >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "::endgroup::"
 
       - uses: actions/attest-build-provenance@v3
-        id: attestations
+        id: attest-kernel
+        if: success()
         with:
-          subject-name: WSL2-Kernel-${{ inputs.kernelBranch }}
-          subject-digest: sha256:${{ steps.upload-artifact.outputs.artifact-digest }}
+          subject-name: WSL2-Kernel-${{ github.event.inputs.kernelBranch }}
+          subject-digest: sha256:${{ steps.digests.outputs.kernel-sha256 }}
+
+      - uses: actions/attest-build-provenance@v3
+        id: attest-modules
+        if: success() && github.event.inputs.build-modules == 'true' && steps.build-modules.outputs.modules-built == 'true'
+        with:
+          subject-name: WSL2-Modules-${{ github.event.inputs.kernelBranch }}
+          subject-digest: sha256:${{ steps.digests.outputs.modules-sha256 }}
