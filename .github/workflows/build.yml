@@ -59,11 +59,11 @@ jobs:
           sudo apt-get upgrade -y
           sudo apt-get install -y build-essential flex bison dwarves libssl-dev libelf-dev cpio qemu-utils
 
-      - name: Copy custom config
+      - name: Patch WSL2 kernel config
         id: custom-config
         if: ${{ inputs.custom-config }}
         run: |
-          cp .config/config/config-wsl2-docker.cfg arch/x86/configs/config-wsl
+          ./scripts/patch-wsl2-kernel-config.sh arch/x86/configs/config-wsl
 
       - name: Build WSL2-Linux-Kernel
         id: build-kernel
