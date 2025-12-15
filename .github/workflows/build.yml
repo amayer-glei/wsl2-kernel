@@ -141,7 +141,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Upload kernel artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         id: upload-kernel
         with:
           name: WSL2-Kernel-${{ github.event.inputs.kernelBranch }}
@@ -151,7 +151,7 @@ jobs:
 
       - name: Upload modules artifact
         if: github.event.inputs.build-modules == 'true'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         id: upload-modules
         with:
           name: WSL2-Modules-${{ github.event.inputs.kernelBranch }}
