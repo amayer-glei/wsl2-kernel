@@ -207,14 +207,14 @@ jobs:
           fi
           echo "::endgroup::"
 
-      - uses: actions/attest-build-provenance@v3
+      - uses: actions/attest-build-provenance@v4
         id: attest-kernel
         if: success()
         with:
           subject-name: WSL2-Kernel-${{ github.event.inputs.kernelBranch }}
           subject-digest: sha256:${{ steps.digests.outputs.kernel-sha256 }}
 
-      - uses: actions/attest-build-provenance@v3
+      - uses: actions/attest-build-provenance@v4
         id: attest-modules
         if: success() && github.event.inputs.build-modules == 'true' && steps.build-modules.outputs.modules-built == 'true'
         with:
