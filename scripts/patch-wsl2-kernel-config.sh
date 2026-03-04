@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to apply Docker and BBR compatibility settings to WSL2 kernel config
+# Script to apply Docker and Android Binder compatibility settings to WSL2 kernel config
 # Usage: ./patch-wsl2-kernel-config.sh <config-file-path>
 
 set -e
@@ -58,15 +58,15 @@ DOCKER_CONFIGS=(
     "CONFIG_BTRFS_FS=y"
 )
 
-# BBR configs
-BBR_CONFIGS=(
-    "CONFIG_TCP_CONG_BBR=y"
-    "CONFIG_NET_SCH_FQ_CODEL=y"
-    "CONFIG_NET_SCH_FQ=y"
+# Android Binder configs
+ANDROID_BINDER_CONFIGS=(
+    "CONFIG_ANDROID_BINDER_IPC=y"
+    "CONFIG_ANDROID_BINDERFS=y"
+    "CONFIG_ANDROID_BINDER_DEVICES=\"binder,hwbinder,vndbinder\""
 )
 
 # Combine all configs
-ALL_CONFIGS=("${DOCKER_CONFIGS[@]}" "${BBR_CONFIGS[@]}")
+ALL_CONFIGS=("${DOCKER_CONFIGS[@]}" "${ANDROID_BINDER_CONFIGS[@]}")
 
 # Create a temporary file for processing
 TMP_FILE=$(mktemp)
@@ -99,6 +99,6 @@ done
 # Replace original file with the modified one
 mv "$TMP_FILE" "$CONFIG_FILE"
 
-echo "Successfully applied Docker and BBR compatibility settings to $CONFIG_FILE"
+echo "Successfully applied Docker and Android Binder compatibility settings to $CONFIG_FILE"
 echo "Applied ${#DOCKER_CONFIGS[@]} Docker compatibility configs"
-echo "Applied ${#BBR_CONFIGS[@]} BBR configs"
+echo "Applied ${#ANDROID_BINDER_CONFIGS[@]} Android Binder configs"
