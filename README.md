@@ -6,12 +6,13 @@
 [![Linux Kernel](https://img.shields.io/badge/Linux%20Kernel-6.6+-FCC624?logo=linux&logoColor=black)](https://www.kernel.org/)
 [![Shell Script](https://img.shields.io/badge/Shell-Bash-4EAA25?logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
 
-A repository for building WSL2 Linux kernels with Docker compatibility and Android Binder support. This project provides automated tools and configurations to patch Microsoft's WSL2 kernel source with the necessary kernel options required for running Docker and Android Binder workloads.
+A repository for building WSL2 Linux kernels with Docker compatibility, Android Binder support, and vidtv (virtual DVB test driver). This project provides automated tools and configurations to patch Microsoft's WSL2 kernel source with the necessary kernel options required for these workloads.
 
 ## Features
 
 - 🐳 **Docker Compatibility**: Automatically patches WSL2 kernel config with all required options for Docker Engine
 - 📱 **Android Binder Support**: Enables Android Binder IPC and BinderFS kernel options
+- 📺 **vidtv Support**: Enables the virtual DVB test driver (`vidtv`) for media testing
 - 🔧 **Automated Scripts**: Easy-to-use scripts for fetching and patching kernel configurations
 - ☁️ **CI/CD Ready**: GitHub Actions workflow for automated kernel builds
 
@@ -22,7 +23,8 @@ The default WSL2 kernel provided by Microsoft may not include all the kernel opt
 1. Fetching the latest WSL2 kernel configuration from Microsoft's repository
 2. Applying patches to enable Docker compatibility options
 3. Enabling Android Binder IPC support
-4. Providing automated build workflows via GitHub Actions
+4. Enabling `vidtv` test driver support
+5. Providing automated build workflows via GitHub Actions
 
 ## Prerequisites
 
@@ -61,7 +63,7 @@ This will download the config to `config/config-wsl2.cfg` (default location).
 
 ### Patching Kernel Config
 
-Apply Docker and Android Binder compatibility settings to a kernel configuration file:
+Apply Docker, Android Binder, and vidtv compatibility settings to a kernel configuration file:
 
 ```bash
 ./scripts/patch-wsl2-kernel-config.sh <config-file-path>
@@ -77,7 +79,7 @@ The script will:
 
 - Create a backup of the original config file
 - Remove existing conflicting configuration entries
-- Add all required Docker and Android Binder options
+- Add all required Docker, Android Binder, and vidtv options
 
 ### Building with GitHub Actions
 
@@ -181,6 +183,15 @@ CONFIG_ANDROID_BINDERFS=y
 CONFIG_ANDROID_BINDER_DEVICES="binder,hwbinder,vndbinder"
 ```
 
+### vidtv (Virtual DVB Test Driver)
+
+`vidtv` is a virtual DVB driver used for media pipeline and userspace testing without physical tuner hardware:
+
+```bash
+CONFIG_DVB_TEST_DRIVERS=y
+CONFIG_DVB_VIDTV=m
+```
+
 ## Project Structure
 
 ```text
@@ -190,7 +201,7 @@ wsl2-kernel-build/
 │   └── config-wsl2-docker.cfg   # Pre-patched config with Docker support
 ├── scripts/
 │   ├── fetch-wsl2-config.sh     # Script to fetch latest WSL2 config
-│   └── patch-wsl2-kernel-config.sh  # Script to patch config with Docker/Android Binder options
+│   └── patch-wsl2-kernel-config.sh  # Script to patch config with Docker/Android Binder/vidtv options
 ├── .github/
 │   └── workflows/
 │       └── build.yml            # GitHub Actions build workflow
@@ -224,3 +235,4 @@ If Docker still doesn't work after using a patched kernel:
 - [WSL2 Docker Issue Discussion](https://github.com/microsoft/WSL/issues/11742#issuecomment-2272557613)
 - [Microsoft WSL2-Linux-Kernel Repository](https://github.com/microsoft/WSL2-Linux-Kernel)
 - [Waydroid Documentation](https://docs.waydro.id/)
+- [vidtv Driver Documentation](https://docs.kernel.org/driver-api/media/drivers/vidtv.html)

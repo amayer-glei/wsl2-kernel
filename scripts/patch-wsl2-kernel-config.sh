@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to apply Docker and Android Binder compatibility settings to WSL2 kernel config
+# Script to apply Docker, Android Binder, and vidtv compatibility settings to WSL2 kernel config
 # Usage: ./patch-wsl2-kernel-config.sh <config-file-path>
 
 set -e
@@ -65,8 +65,14 @@ ANDROID_BINDER_CONFIGS=(
     "CONFIG_ANDROID_BINDER_DEVICES=\"binder,hwbinder,vndbinder\""
 )
 
+# vidtv (virtual DVB test driver) configs
+VIDTV_CONFIGS=(
+    "CONFIG_DVB_TEST_DRIVERS=y"
+    "CONFIG_DVB_VIDTV=m"
+)
+
 # Combine all configs
-ALL_CONFIGS=("${DOCKER_CONFIGS[@]}" "${ANDROID_BINDER_CONFIGS[@]}")
+ALL_CONFIGS=("${DOCKER_CONFIGS[@]}" "${ANDROID_BINDER_CONFIGS[@]}" "${VIDTV_CONFIGS[@]}")
 
 # Create a temporary file for processing
 TMP_FILE=$(mktemp)
@@ -99,6 +105,7 @@ done
 # Replace original file with the modified one
 mv "$TMP_FILE" "$CONFIG_FILE"
 
-echo "Successfully applied Docker and Android Binder compatibility settings to $CONFIG_FILE"
+echo "Successfully applied Docker, Android Binder, and vidtv compatibility settings to $CONFIG_FILE"
 echo "Applied ${#DOCKER_CONFIGS[@]} Docker compatibility configs"
 echo "Applied ${#ANDROID_BINDER_CONFIGS[@]} Android Binder configs"
+echo "Applied ${#VIDTV_CONFIGS[@]} vidtv configs"
